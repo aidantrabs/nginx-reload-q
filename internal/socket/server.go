@@ -22,8 +22,7 @@ func NewServer(path string, log *slog.Logger) *Server {
 	}
 }
 
-// listen creates the UDS and starts accepting connections
-// removes any stale socket file before binding
+// creates the UDS and starts accepting connections
 func (s *Server) Listen() error {
 	if err := removeStaleSocket(s.path); err != nil {
 		return fmt.Errorf("removing stale socket: %w", err)
@@ -45,7 +44,7 @@ func (s *Server) Listen() error {
 	return nil
 }
 
-// close shuts down the listener and removes the socket file
+// shuts down the listener and removes the socket file
 func (s *Server) Close() error {
 	if s.listener != nil {
 		s.listener.Close()
@@ -57,8 +56,7 @@ func (s *Server) Close() error {
 	return nil
 }
 
-// accept blocks and handles incoming connections one at a time
-// each connection reads a single command, responds, and closes
+// blocks and handles incoming connections
 func (s *Server) Accept() error {
 	for {
 		conn, err := s.listener.Accept()
