@@ -1,10 +1,12 @@
 package socket
 
 import (
+	"bufio"
 	"fmt"
 	"log/slog"
 	"net"
 	"os"
+	"strings"
 )
 
 type Server struct {
@@ -53,6 +55,40 @@ func (s *Server) Close() error {
 	s.log.Info("socket closed", "path", s.path)
 
 	return nil
+}
+
+// accept blocks and handles incoming connections one at a time
+// each connection reads a single command, responds, and closes
+func (s *Server) Accept() error {
+	for {
+		conn, err := s.listener.Accept()
+		if err != nil {
+			return fmt.Errorf("accept: %w", err)
+		}
+
+		go s.handleConn(conn)
+	}
+}
+
+func (s *Server) handleConn(conn net.Conn) {
+	defer conn.Close()
+
+	scanner := bufio.NewScanner(conn)
+	if !scanner.Scan() {
+		fmt.Fprintf(conn, "ERROR: empty request\n")
+		return
+	}
+
+	cmd := strings.TrimSpace(scanner.Text())
+
+	switch cmd {
+	case "RELOAD":
+		s.log.Info("reload requested")
+		fmt.Fprintf(conn, "OK\n")
+	default:
+		s.log.Warn("unknown command", "cmd", cmd)
+		fmt.Fprintf(conn, "ERROR: unknown command\n")
+	}
 }
 
 func removeStaleSocket(path string) error {
