@@ -3,6 +3,8 @@ package main
 import (
 	"fmt"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/aidantrabs/nginx-reload-q/internal/logging"
 	"github.com/aidantrabs/nginx-reload-q/internal/socket"
@@ -31,5 +33,20 @@ func run() error {
 
 	log.Info("ready")
 
-	return srv.Accept()
+	// shut down cleanly on SIGTERM or SIGINT
+	sig := make(chan os.Signal, 1)
+	signal.Notify(sig, syscall.SIGTERM, syscall.SIGINT)
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- srv.Accept()
+	}()
+
+	select {
+	case err := <-errCh:
+		return err
+	case s := <-sig:
+		log.Info("shutting down", "signal", s.String())
+		return nil
+	}
 }
