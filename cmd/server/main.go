@@ -30,7 +30,7 @@ func run() error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	q := queue.New(16, reloader.Reload, log)
+	q := queue.New(reloader.Reload, log)
 	q.Start(ctx)
 	defer q.Close()
 
