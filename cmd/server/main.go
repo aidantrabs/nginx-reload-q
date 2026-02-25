@@ -7,6 +7,7 @@ import (
 	"syscall"
 
 	"github.com/aidantrabs/nginx-reload-q/internal/logging"
+	"github.com/aidantrabs/nginx-reload-q/internal/queue"
 	"github.com/aidantrabs/nginx-reload-q/internal/socket"
 )
 
@@ -24,7 +25,11 @@ const defaultSocketPath = "/var/run/nginx-reload.sock"
 func run() error {
 	log := logging.New()
 
-	srv := socket.NewServer(defaultSocketPath, log)
+	q := queue.New(16, log)
+	q.Start()
+	defer q.Close()
+
+	srv := socket.NewServer(defaultSocketPath, q, log)
 
 	if err := srv.Listen(); err != nil {
 		return err

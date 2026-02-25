@@ -7,18 +7,22 @@ import (
 	"net"
 	"os"
 	"strings"
+
+	"github.com/aidantrabs/nginx-reload-q/internal/queue"
 )
 
 type Server struct {
 	path     string
 	listener net.Listener
 	log      *slog.Logger
+	queue    *queue.Queue
 }
 
-func NewServer(path string, log *slog.Logger) *Server {
+func NewServer(path string, q *queue.Queue, log *slog.Logger) *Server {
 	return &Server{
-		path: path,
-		log:  log,
+		path:  path,
+		log:   log,
+		queue: q,
 	}
 }
 
@@ -82,7 +86,11 @@ func (s *Server) handleConn(conn net.Conn) {
 	switch cmd {
 	case "RELOAD":
 		s.log.Info("reload requested")
-		fmt.Fprintf(conn, "OK\n")
+		if s.queue.Enqueue() {
+			fmt.Fprintf(conn, "OK\n")
+		} else {
+			fmt.Fprintf(conn, "ERROR: queue full\n")
+		}
 	default:
 		s.log.Warn("unknown command", "cmd", cmd)
 		fmt.Fprintf(conn, "ERROR: unknown command\n")
