@@ -1,0 +1,60 @@
+# dev log
+
+## project setup
+
+standard go project layout. `cmd/server/main.go` is the entrypoint, everything
+else lives under `internal/`. using `log/slog` with JSON output for structured
+logging - no external deps needed, stdlib handles it fine.
+
+`run()` is separated from `main()` so we can return errors cleanly instead of
+sprinkling `os.Exit` everywhere.
+
+## unix socket server
+
+the server listens on a UDS (`/var/run/nginx-reload.sock`). on startup it
+removes any stale socket file from a previous crash so we don't get "address
+already in use". socket permissions are set to 0600 (owner only).
+
+protocol is dead simple - client sends `RELOAD\n`, server responds `OK\n` or
+`ERROR: <reason>\n`. one command per connection, then it closes. no need for
+persistent connections here since reload requests are infrequent.
+
+connections are accepted in a loop and each one gets its own goroutine. the
+accept loop runs in a goroutine itself so main can `select` on either an accept
+error or a shutdown signal (SIGTERM/SIGINT).
+
+## queue + worker
+
+single worker goroutine pulls jobs off a channel. only one reload runs at a
+time - that's the whole point. the socket handler calls `Enqueue()` which is
+non-blocking, so clients get a response immediately without waiting for the
+reload to finish.
+
+the queue takes a `ReloadFunc` instead of importing the reloader directly. keeps
+it testable and decoupled.
+
+context flows from main -> queue -> worker -> reloader so everything cancels
+cleanly on shutdown.
+
+## burst deduplication
+
+the old queue was a buffered channel (size 16) which meant 16 identical reloads
+could stack up. that's pointless - nginx reload is idempotent, one reload picks
+up all config changes.
+
+switched to a channel of size 1 with an `atomic.Bool` tracking whether a reload
+is already pending. `Enqueue()` uses `CompareAndSwap` - if something's already
+queued, it just says "yeah we know" and deduplicates. no locks, no contention.
+
+the worker clears the flag right before executing, so a request that comes in
+*during* a reload still gets queued as the next one. worst case you get two
+reloads back to back, which is fine.
+
+## nginx reloader
+
+`reloader.Reload(ctx)` runs `nginx -t` first, then `nginx -s reload` if the
+config test passes. both commands get the context so they respect cancellation.
+stderr is captured and included in error messages so you actually know what went
+wrong when nginx complains.
+
+no retries - if nginx -t fails, the config is broken and retrying won't fix it.
