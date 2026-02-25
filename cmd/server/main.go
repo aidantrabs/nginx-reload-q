@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/signal"
@@ -8,6 +9,7 @@ import (
 
 	"github.com/aidantrabs/nginx-reload-q/internal/logging"
 	"github.com/aidantrabs/nginx-reload-q/internal/queue"
+	"github.com/aidantrabs/nginx-reload-q/internal/reloader"
 	"github.com/aidantrabs/nginx-reload-q/internal/socket"
 )
 
@@ -25,8 +27,11 @@ const defaultSocketPath = "/var/run/nginx-reload.sock"
 func run() error {
 	log := logging.New()
 
-	q := queue.New(16, log)
-	q.Start()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	q := queue.New(16, reloader.Reload, log)
+	q.Start(ctx)
 	defer q.Close()
 
 	srv := socket.NewServer(defaultSocketPath, q, log)
@@ -52,6 +57,7 @@ func run() error {
 		return err
 	case s := <-sig:
 		log.Info("shutting down", "signal", s.String())
+		cancel()
 		return nil
 	}
 }

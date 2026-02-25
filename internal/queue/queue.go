@@ -1,28 +1,31 @@
 package queue
 
 import (
+	"context"
 	"log/slog"
 	"sync"
-	"time"
 )
 
+type ReloadFunc func(ctx context.Context) error
+
 type Queue struct {
-	jobs chan struct{}
-	log  *slog.Logger
-	wg   sync.WaitGroup
+	jobs   chan struct{}
+	log    *slog.Logger
+	wg     sync.WaitGroup
+	reload ReloadFunc
 }
 
-func New(size int, log *slog.Logger) *Queue {
+func New(size int, reload ReloadFunc, log *slog.Logger) *Queue {
 	return &Queue{
-		jobs: make(chan struct{}, size),
-		log:  log,
+		jobs:   make(chan struct{}, size),
+		log:    log,
+		reload: reload,
 	}
 }
 
-// launches the worker goroutine
-func (q *Queue) Start() {
+func (q *Queue) Start(ctx context.Context) {
 	q.wg.Add(1)
-	go q.worker()
+	go q.worker(ctx)
 }
 
 // adds a reload job, returns false if queue is full
@@ -48,16 +51,17 @@ func (q *Queue) Depth() int {
 	return len(q.jobs)
 }
 
-func (q *Queue) worker() {
+func (q *Queue) worker(ctx context.Context) {
 	defer q.wg.Done()
 
 	for range q.jobs {
 		q.log.Info("worker processing reload")
 
-		// simulated reload, replaced later
-		time.Sleep(500 * time.Millisecond)
-
-		q.log.Info("worker reload complete")
+		if err := q.reload(ctx); err != nil {
+			q.log.Error("reload failed", "err", err)
+		} else {
+			q.log.Info("worker reload complete")
+		}
 	}
 
 	q.log.Info("worker stopped")
