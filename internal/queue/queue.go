@@ -4,20 +4,22 @@ import (
 	"context"
 	"log/slog"
 	"sync"
+	"sync/atomic"
 )
 
 type ReloadFunc func(ctx context.Context) error
 
 type Queue struct {
-	jobs   chan struct{}
-	log    *slog.Logger
-	wg     sync.WaitGroup
-	reload ReloadFunc
+	jobs    chan struct{}
+	log     *slog.Logger
+	wg      sync.WaitGroup
+	reload  ReloadFunc
+	pending atomic.Bool
 }
 
-func New(size int, reload ReloadFunc, log *slog.Logger) *Queue {
+func New(reload ReloadFunc, log *slog.Logger) *Queue {
 	return &Queue{
-		jobs:   make(chan struct{}, size),
+		jobs:   make(chan struct{}, 1),
 		log:    log,
 		reload: reload,
 	}
@@ -28,16 +30,17 @@ func (q *Queue) Start(ctx context.Context) {
 	go q.worker(ctx)
 }
 
-// adds a reload job, returns false if queue is full
+// enqueues a reload, collapses duplicates if one is already pending
 func (q *Queue) Enqueue() bool {
-	select {
-	case q.jobs <- struct{}{}:
-		q.log.Info("reload enqueued", "depth", len(q.jobs))
+	if !q.pending.CompareAndSwap(false, true) {
+		q.log.Info("reload already pending, deduplicating")
 		return true
-	default:
-		q.log.Warn("queue full, dropping request")
-		return false
 	}
+
+	q.jobs <- struct{}{}
+	q.log.Info("reload enqueued")
+
+	return true
 }
 
 // signals the worker to stop and waits for it to drain
@@ -46,9 +49,8 @@ func (q *Queue) Close() {
 	q.wg.Wait()
 }
 
-// returns the current number of pending jobs
-func (q *Queue) Depth() int {
-	return len(q.jobs)
+func (q *Queue) Pending() bool {
+	return q.pending.Load()
 }
 
 func (q *Queue) worker(ctx context.Context) {
@@ -56,6 +58,7 @@ func (q *Queue) worker(ctx context.Context) {
 
 	for range q.jobs {
 		q.log.Info("worker processing reload")
+		q.pending.Store(false)
 
 		if err := q.reload(ctx); err != nil {
 			q.log.Error("reload failed", "err", err)
