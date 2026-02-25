@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/aidantrabs/nginx-reload-q/internal/logging"
+	"github.com/aidantrabs/nginx-reload-q/internal/socket"
 )
 
 func main() {
@@ -16,10 +17,19 @@ func main() {
 	}
 }
 
+const defaultSocketPath = "/var/run/nginx-reload.sock"
+
 func run() error {
 	log := logging.New()
 
+	srv := socket.NewServer(defaultSocketPath, log)
+
+	if err := srv.Listen(); err != nil {
+		return err
+	}
+	defer srv.Close()
+
 	log.Info("ready")
 
-	return nil
+	return srv.Accept()
 }
