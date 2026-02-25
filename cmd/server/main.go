@@ -3,6 +3,8 @@ package main
 import (
 	"fmt"
 	"os"
+
+	"github.com/aidantrabs/nginx-reload-q/internal/logging"
 )
 
 func main() {
@@ -15,7 +17,9 @@ func main() {
 }
 
 func run() error {
-	fmt.Println("ready")
+	log := logging.New()
+
+	log.Info("ready")
 
 	return nil
 }
