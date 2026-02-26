@@ -110,3 +110,8 @@ the `ReloadFunc` injection makes it easy to swap in fake reloaders.
 
 multi-stage build - compiles in `golang:1.23-alpine`, copies the static binary
 into a minimal alpine image with nginx. keeps the final image small.
+
+## CI
+
+github actions workflow on push to main and PRs. runs build, tests with `-race`,
+and `go vet`. kept it simple - no linters or fancy stuff yet.

@@ -1,5 +1,7 @@
 # nginx-reload-q
 
+[![ci](https://github.com/aidantrabs/nginx-reload-q/actions/workflows/ci.yml/badge.svg)](https://github.com/aidantrabs/nginx-reload-q/actions/workflows/ci.yml)
+
 A lightweight Go daemon that serializes nginx reload requests through a Unix domain socket. Built for environments where multiple processes (CI pipelines, deploy scripts, config management tools) might trigger nginx reloads concurrently.
 
 ## the problem
