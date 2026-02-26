@@ -84,3 +84,10 @@ an explicit shutdown sequence instead:
 
 the accept error path still returns immediately since that's a real failure, not
 a signal-triggered shutdown.
+
+## configuration
+
+socket path and metrics address were hardcoded which is fine for dev but annoying
+in prod. added `-socket` and `-metrics` flags with env var fallbacks
+(`RELOAD_SOCKET`, `RELOAD_METRICS_ADDR`). flags win over env vars, env vars win
+over defaults. used stdlib `flag` - no need for cobra/viper for two settings.
