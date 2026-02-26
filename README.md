@@ -65,7 +65,22 @@ make build
 sudo ./nginx-reload-q
 ```
 
-The daemon listens on `/var/run/nginx-reload.sock` and exposes metrics on `127.0.0.1:9111`.
+By default it listens on `/var/run/nginx-reload.sock` and exposes metrics on `127.0.0.1:9111`. Both are configurable via flags or env vars:
+
+```bash
+# flags
+sudo ./nginx-reload-q -socket /tmp/reload.sock -metrics 0.0.0.0:9111
+
+# env vars
+RELOAD_SOCKET=/tmp/reload.sock RELOAD_METRICS_ADDR=0.0.0.0:9111 sudo ./nginx-reload-q
+```
+
+| setting | flag | env var | default |
+|---------|------|---------|---------|
+| socket path | `-socket` | `RELOAD_SOCKET` | `/var/run/nginx-reload.sock` |
+| metrics address | `-metrics` | `RELOAD_METRICS_ADDR` | `127.0.0.1:9111` |
+
+Flags take priority over env vars.
 
 ### send a reload request
 
@@ -122,6 +137,8 @@ Requires=nginx.service
 [Service]
 Type=simple
 ExecStart=/usr/local/bin/nginx-reload-q
+Environment=RELOAD_SOCKET=/var/run/nginx-reload.sock
+Environment=RELOAD_METRICS_ADDR=127.0.0.1:9111
 Restart=on-failure
 RestartSec=5
 
