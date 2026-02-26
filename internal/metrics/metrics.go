@@ -18,6 +18,7 @@ func NewServer(addr string, q *queue.Queue, log *slog.Logger) *Server {
 	s := &Server{q: q, log: log}
 
 	mux := http.NewServeMux()
+	mux.HandleFunc("GET /health", s.handleHealth)
 	mux.HandleFunc("GET /metrics", s.handleMetrics)
 
 	s.srv = &http.Server{
@@ -35,6 +36,11 @@ func (s *Server) ListenAndServe() error {
 
 func (s *Server) Close() error {
 	return s.srv.Close()
+}
+
+func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.Write([]byte(`{"status":"ok"}` + "\n"))
 }
 
 func (s *Server) handleMetrics(w http.ResponseWriter, r *http.Request) {
