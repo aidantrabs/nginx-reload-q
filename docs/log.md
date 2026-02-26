@@ -115,3 +115,18 @@ into a minimal alpine image with nginx. keeps the final image small.
 
 github actions workflow on push to main and PRs. runs build, tests with `-race`,
 and `go vet`. kept it simple - no linters or fancy stuff yet.
+
+## health endpoint
+
+`GET /health` returns `{"status":"ok"}` - lives on the same HTTP server as
+metrics. just enough for load balancers and container health checks.
+
+## releases
+
+added `--version` flag that prints the version and exits. version is set at build
+time via ldflags (`-X main.version=...`). defaults to "dev" for local builds,
+Makefile pulls from `git describe`.
+
+goreleaser handles the actual release process - builds static binaries for
+linux/darwin on amd64/arm64. triggered by pushing a `v*` tag via a separate
+github actions workflow. first release is `v0.1.0`.
