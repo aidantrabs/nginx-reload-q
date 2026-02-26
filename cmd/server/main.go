@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -58,7 +59,6 @@ func run() error {
 	}
 
 	msrv := metrics.NewServer(*metricsAddr, q, log)
-	go msrv.ListenAndServe()
 
 	log.Info("ready")
 
@@ -69,6 +69,11 @@ func run() error {
 	errCh := make(chan error, 1)
 	go func() {
 		errCh <- srv.Accept()
+	}()
+	go func() {
+		if err := msrv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			errCh <- fmt.Errorf("metrics server: %w", err)
+		}
 	}()
 
 	select {
