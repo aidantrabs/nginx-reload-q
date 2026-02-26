@@ -36,17 +36,14 @@ func run() error {
 
 	q := queue.New(reloader.Reload, log)
 	q.Start(ctx)
-	defer q.Close()
 
 	srv := socket.NewServer(defaultSocketPath, q, log)
 
 	if err := srv.Listen(); err != nil {
 		return err
 	}
-	defer srv.Close()
 
 	msrv := metrics.NewServer(defaultMetricsAddr, q, log)
-	defer msrv.Close()
 	go msrv.ListenAndServe()
 
 	log.Info("ready")
@@ -65,7 +62,19 @@ func run() error {
 		return err
 	case s := <-sig:
 		log.Info("shutting down", "signal", s.String())
-		cancel()
-		return nil
 	}
+
+	// shutdown order matters:
+	// 1. stop accepting new connections
+	// 2. cancel context so in-flight reloads abort
+	// 3. drain the queue and wait for worker to finish
+	// 4. stop metrics server
+	srv.Close()
+	cancel()
+	q.Close()
+	msrv.Close()
+
+	log.Info("shutdown complete")
+
+	return nil
 }
