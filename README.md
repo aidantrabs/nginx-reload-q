@@ -47,6 +47,15 @@ Only one reload ever runs at a time. The queue guarantees serialization.
 
 ## install
 
+Download a prebuilt binary from [releases](https://github.com/aidantrabs/nginx-reload-q/releases):
+
+```bash
+curl -L https://github.com/aidantrabs/nginx-reload-q/releases/latest/download/nginx-reload-q_0.1.0_linux_amd64.tar.gz | tar xz
+sudo mv nginx-reload-q /usr/local/bin/
+```
+
+Or with `go install`:
+
 ```bash
 go install github.com/aidantrabs/nginx-reload-q/cmd/server@latest
 ```
