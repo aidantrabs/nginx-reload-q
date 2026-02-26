@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/aidantrabs/nginx-reload-q/internal/queue"
 )
@@ -72,8 +73,11 @@ func (s *Server) Accept() error {
 	}
 }
 
+const connTimeout = 5 * time.Second
+
 func (s *Server) handleConn(conn net.Conn) {
 	defer conn.Close()
+	conn.SetDeadline(time.Now().Add(connTimeout))
 
 	scanner := bufio.NewScanner(conn)
 	if !scanner.Scan() {
