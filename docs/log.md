@@ -58,3 +58,15 @@ stderr is captured and included in error messages so you actually know what went
 wrong when nginx complains.
 
 no retries - if nginx -t fails, the config is broken and retrying won't fix it.
+
+## metrics
+
+added atomic counters to the queue - successful reloads, failures, deduplicated
+requests, and a last reload timestamp. all lock-free using `sync/atomic`.
+
+`GET /metrics` on `127.0.0.1:9111` dumps everything as JSON. localhost only so
+it's not exposed. no prometheus dependency, just `encoding/json` and `net/http`.
+good enough for now, easy to swap out later if needed.
+
+`omitempty` on `last_reload` so the response isn't cluttered with empty strings
+before the first reload runs.
