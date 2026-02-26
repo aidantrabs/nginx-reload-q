@@ -57,6 +57,13 @@ cd nginx-reload-q
 make build
 ```
 
+Or with Docker:
+
+```bash
+docker build -t nginx-reload-q .
+docker run -v /var/run:/var/run nginx-reload-q
+```
+
 ## usage
 
 ### start the daemon
@@ -144,6 +151,12 @@ RestartSec=5
 
 [Install]
 WantedBy=multi-user.target
+```
+
+## testing
+
+```bash
+go test ./...
 ```
 
 ## protocol
