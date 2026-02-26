@@ -91,3 +91,22 @@ socket path and metrics address were hardcoded which is fine for dev but annoyin
 in prod. added `-socket` and `-metrics` flags with env var fallbacks
 (`RELOAD_SOCKET`, `RELOAD_METRICS_ADDR`). flags win over env vars, env vars win
 over defaults. used stdlib `flag` - no need for cobra/viper for two settings.
+
+## timeouts
+
+two places needed them. the reloader wraps the parent context with a 30s timeout
+covering both `nginx -t` and `nginx -s reload` - if nginx hangs the commands get
+killed. socket connections get a 5s deadline so a client that connects and never
+sends anything doesn't hold a goroutine forever.
+
+## tests
+
+unit tests on the queue package since that's where the real logic lives. covers
+single reload, failure tracking, burst dedup (block the worker, pile up requests,
+verify collapse), stats, and 100 concurrent goroutines all enqueuing at once.
+the `ReloadFunc` injection makes it easy to swap in fake reloaders.
+
+## docker
+
+multi-stage build - compiles in `golang:1.23-alpine`, copies the static binary
+into a minimal alpine image with nginx. keeps the final image small.
