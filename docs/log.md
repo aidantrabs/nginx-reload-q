@@ -70,3 +70,17 @@ good enough for now, easy to swap out later if needed.
 
 `omitempty` on `last_reload` so the response isn't cluttered with empty strings
 before the first reload runs.
+
+## graceful shutdown
+
+originally used defers for cleanup but the ordering was wrong - `cancel()` would
+fire last when it should fire early so in-flight reloads get killed. switched to
+an explicit shutdown sequence instead:
+
+1. close the socket server (stop accepting new work)
+2. cancel context (abort any running nginx commands)
+3. close the queue (drain + wait for worker)
+4. close metrics server last (still scrapable during drain)
+
+the accept error path still returns immediately since that's a real failure, not
+a signal-triggered shutdown.
