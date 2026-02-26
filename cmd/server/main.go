@@ -8,6 +8,7 @@ import (
 	"syscall"
 
 	"github.com/aidantrabs/nginx-reload-q/internal/logging"
+	"github.com/aidantrabs/nginx-reload-q/internal/metrics"
 	"github.com/aidantrabs/nginx-reload-q/internal/queue"
 	"github.com/aidantrabs/nginx-reload-q/internal/reloader"
 	"github.com/aidantrabs/nginx-reload-q/internal/socket"
@@ -22,7 +23,10 @@ func main() {
 	}
 }
 
-const defaultSocketPath = "/var/run/nginx-reload.sock"
+const (
+	defaultSocketPath = "/var/run/nginx-reload.sock"
+	defaultMetricsAddr = "127.0.0.1:9111"
+)
 
 func run() error {
 	log := logging.New()
@@ -40,6 +44,10 @@ func run() error {
 		return err
 	}
 	defer srv.Close()
+
+	msrv := metrics.NewServer(defaultMetricsAddr, q, log)
+	defer msrv.Close()
+	go msrv.ListenAndServe()
 
 	log.Info("ready")
 
