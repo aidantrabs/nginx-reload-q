@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"os"
 	"os/signal"
@@ -23,12 +24,18 @@ func main() {
 	}
 }
 
-const (
-	defaultSocketPath = "/var/run/nginx-reload.sock"
-	defaultMetricsAddr = "127.0.0.1:9111"
-)
+func envOrDefault(key, fallback string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return fallback
+}
 
 func run() error {
+	socketPath := flag.String("socket", envOrDefault("RELOAD_SOCKET", "/var/run/nginx-reload.sock"), "path to unix socket")
+	metricsAddr := flag.String("metrics", envOrDefault("RELOAD_METRICS_ADDR", "127.0.0.1:9111"), "metrics listen address")
+	flag.Parse()
+
 	log := logging.New()
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -37,13 +44,13 @@ func run() error {
 	q := queue.New(reloader.Reload, log)
 	q.Start(ctx)
 
-	srv := socket.NewServer(defaultSocketPath, q, log)
+	srv := socket.NewServer(*socketPath, q, log)
 
 	if err := srv.Listen(); err != nil {
 		return err
 	}
 
-	msrv := metrics.NewServer(defaultMetricsAddr, q, log)
+	msrv := metrics.NewServer(*metricsAddr, q, log)
 	go msrv.ListenAndServe()
 
 	log.Info("ready")
